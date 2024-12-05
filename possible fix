@@ -1,0 +1,118 @@
+import pandas as pd
+import plotly.graph_objects as go
+import ipywidgets as widgets
+from IPython.display import display
+
+# Sample DataFrames for demonstration
+ANA23 = pd.DataFrame({
+    'Sector': ['A', 'B'],
+    'Industry': ['Industry1', 'Industry2'],
+    'Product': ['Product1', 'Product2'],
+    'Transaction': ['T1', 'T2'],
+    '1997': [100, 200],
+    '1998': [None, 210],
+    '1999': [180, None],
+    # Add more year columns up to 2022
+})
+
+Current = pd.DataFrame({
+    'Sector': ['A', 'B'],
+    'Industry': ['Industry1', 'Industry2'],
+    'Product': ['Product1', 'Product2'],
+    'Transaction': ['T1', 'T2'],
+    '1997': [120, 190],
+    '1998': [None, 220],
+    '1999': [170, None],
+    # Add more year columns up to 2022
+})
+
+# Strip whitespace and ensure columns are strings
+ANA23.columns = ANA23.columns.astype(str).str.strip()
+Current.columns = Current.columns.astype(str).str.strip()
+
+# Define year columns
+year_columns = [str(year) for year in range(1997, 2023)]
+
+# Convert year columns to float type to ensure compatibility with NaN
+for year in year_columns:
+    if year in ANA23.columns:
+        ANA23[year] = pd.to_numeric(ANA23[year], errors='coerce').astype(float)
+    if year in Current.columns:
+        Current[year] = pd.to_numeric(Current[year], errors='coerce').astype(float)
+
+# Dropdowns to select filter options
+Sector_dropdown = widgets.Dropdown(options=ANA23['Sector'].unique(), description='Sector')
+Industry_dropdown = widgets.Dropdown(options=ANA23['Industry'].unique(), description='Industry')
+product_dropdown = widgets.Dropdown(options=ANA23['Product'].unique(), description='Product')
+Transaction_dropdown = widgets.Dropdown(options=ANA23['Transaction'].unique(), description='Transaction')
+
+def plot_filtered_data(sector, industry, product, transaction):
+    # Filter data based on selection
+    filtered_ANA23 = ANA23[(ANA23['Sector'] == sector) &
+                           (ANA23['Industry'] == industry) &
+                           (ANA23['Product'] == product) &
+                           (ANA23['Transaction'] == transaction)]
+
+    filtered_current = Current[(Current['Sector'] == sector) &
+                               (Current['Industry'] == industry) &
+                               (Current['Product'] == product) &
+                               (Current['Transaction'] == transaction)]
+
+    if filtered_ANA23.empty or filtered_current.empty:
+        print("No data available for the selected combination")
+        return
+
+    # Debugging: Print filtered dataframes and their types
+    print("Filtered ANA23 DataFrame:")
+    print(filtered_ANA23)
+    print("\nColumn types in filtered ANA23 DataFrame:")
+    print(filtered_ANA23.dtypes)
+
+    print("\nFiltered Current DataFrame:")
+    print(filtered_current)
+    print("\nColumn types in filtered Current DataFrame:")
+    print(filtered_current.dtypes)
+
+    # Use only available year columns in filtered data
+    available_year_columns_ana23 = [year for year in year_columns if year in filtered_ANA23.columns]
+    available_year_columns_current = [year for year in year_columns if year in filtered_current.columns]
+
+    # Handle null values by replacing them with zeros
+    filtered_ANA23[available_year_columns_ana23] = filtered_ANA23[available_year_columns_ana23].fillna(0)
+    filtered_current[available_year_columns_current] = filtered_current[available_year_columns_current].fillna(0)
+
+    # Access row values safely
+    ana23_values = filtered_ANA23[available_year_columns_ana23].iloc[0]
+    current_values = filtered_current[available_year_columns_current].iloc[0]
+
+    # Create line chart
+    fig = go.Figure()
+
+    # Add line for ANA23
+    fig.add_trace(go.Scatter(x=available_year_columns_ana23, y=ana23_values,
+                             mode='lines+markers', name='ANA23'))
+
+    # Add line for current
+    fig.add_trace(go.Scatter(x=available_year_columns_current, y=current_values,
+                             mode='lines+markers', name='Current'))
+
+    # Update the layout of the chart
+    fig.update_layout(title='Yearly Comparison for Selected Filter',
+                      xaxis_title='Year',
+                      yaxis_title='Values',
+                      xaxis_tickangle=-45)
+
+    # Display the chart
+    fig.show()
+
+# Link widgets with the function
+ui = widgets.VBox([Sector_dropdown, Industry_dropdown, product_dropdown, Transaction_dropdown])
+out = widgets.interactive_output(plot_filtered_data, {
+    'sector': Sector_dropdown,
+    'industry': Industry_dropdown,
+    'product': product_dropdown,
+    'transaction': Transaction_dropdown
+})
+
+# Display the widgets and the output
+display(ui, out)
